@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Runs all .vm files through python's json lint tool before committing,
+# to make sure that you don't commit broken json objects.
+
+git_dir=$(git rev-parse --show-toplevel)
+
+for file in $(git diff --cached --name-only --diff-filter=ACM -- \
+    | grep -P '\.vm$'); do
+    # Extract JSON content from the .vm file
+    json_content=$(sed -n '/#set($data = {/,/})/p' "$file" | sed '1d;$d')
+    if ! echo "{${json_content}}" | python -mjson.tool > /dev/null 2>&1; then
+        echo "Lint check of JSON object failed. Your changes were not committed."
+        echo "in $git_dir/$file:"
+        echo "{${json_content}}" | python -mjson.tool
+        exit 1
+    fi
+done
